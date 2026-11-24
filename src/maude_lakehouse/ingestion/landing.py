@@ -28,10 +28,7 @@ def validate_zip(path: Path) -> None:
         bad_file = archive.testzip()
 
         if bad_file is not None:
-            raise ValueError(
-                f"Corrupt file inside ZIP archive: {bad_file}"
-            )
-
+            raise ValueError(f"Corrupt file inside ZIP archive: {bad_file}")
 
 
 def land_file(
@@ -44,10 +41,12 @@ def land_file(
     Validate and land a source ZIP file.
 
     Stores the original artifact in the raw zone under its SHA-256 and records it in the manifest.
-    Landing the same content again stores nothing new bit still records an observation.
+    Landing the same content again stores nothing new but still records an observation.
     """
     if not DATASET_NAME.fullmatch(dataset_name):
-        raise ValueError(f"Invalid dataset name (use lowercase letters, digits, underscores): {dataset_name!r}")
+        raise ValueError(
+            f"Invalid dataset name (use lowercase letters, digits, underscores): {dataset_name!r}"
+        )
 
     source_path = source_path.resolve()
     project_root = project_root.resolve()
@@ -71,9 +70,7 @@ def land_file(
     # Copy only if this exact artifact isn't already present.
     if destination.exists():
         if calculate_sha256(destination) != checksum:
-            raise ValueError(
-                f"Existing raw artifact failed checksum: {destination}"
-            )
+            raise ValueError(f"Existing raw artifact failed checksum: {destination}")
         already_exists = True
 
     else:
@@ -100,7 +97,7 @@ def land_file(
         dataset_name=dataset_name,
         source_filename=source_path.name,
         source_url=source_url,
-        object_path=(relative_path),
+        object_path=str(relative_path),
         sha256=checksum,
         file_size_bytes=file_size,
         observed_at=datetime.datetime.now(datetime.UTC).isoformat(),
