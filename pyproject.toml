@@ -22,10 +22,12 @@ build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 120
+extend-exclude = ["*.ipynb"]
 
 [dependency-groups]
 dev = [
     "ipykernel>=7.4.0",
+    "prek>=0.5.11",
     "pytest>=9.2.0",
     "ruff>=0.17.6",
 ]
