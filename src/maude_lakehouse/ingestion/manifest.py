@@ -76,7 +76,7 @@ def register_landing(
             """
             INSERT OR IGNORE INTO source_file_versions (
                 dataset_name, source_filename, source_url, object_path,
-                sha256, file_size_bytes, landed_at            
+                sha256, file_size_bytes, landed_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
