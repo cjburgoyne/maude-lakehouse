@@ -1,4 +1,5 @@
 # maude-lakehouse
+[![CI](https://github.com/cjburgoyne/maude-lakehouse/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cjburgoyne/maude-lakehouse/actions/workflows/ci.yml)
 
 A lakehouse for the FDA's MAUDE medical device adverse event data: raw public files landed unchanged, parsed
 into a source-preserving bronze layer, and processed into typed silver tables and targeted gold models.
