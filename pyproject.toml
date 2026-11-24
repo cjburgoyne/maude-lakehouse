@@ -3,7 +3,7 @@ name = "maude-lakehouse"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-license - "MIT"
+license = "MIT"
 license-files = ['LICENSE']
 authors = [
     { name = "cjburgoyne", email = "Sirhc16@gmail.com" }
@@ -23,4 +23,5 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "ipykernel>=7.4.0",
+    "pytest>=9.2.0",
 ]

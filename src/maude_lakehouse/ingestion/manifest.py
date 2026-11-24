@@ -77,7 +77,7 @@ def register_landing(
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (dataset_name, source_filename, source_url, object_path, sha256, file_size_bytes, observed_at),
+            (dataset_name, source_filename, source_url, str(object_path), sha256, file_size_bytes, observed_at),
         )
         new_version = cursor.rowcount == 1
 

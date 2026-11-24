@@ -1,6 +1,6 @@
 import re
 import shutil
-from datetime import datetime
+import datetime
 from hashlib import sha256
 from pathlib import Path
 from zipfile import ZipFile
@@ -103,7 +103,7 @@ def land_file(
         object_path=(relative_path),
         sha256=checksum,
         file_size_bytes=file_size,
-        observed_at=datetime.now(datetime.UTC).isoformat(),
+        observed_at=datetime.datetime.now(datetime.UTC).isoformat(),
     )
 
     return {
