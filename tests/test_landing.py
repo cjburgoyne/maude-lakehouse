@@ -25,9 +25,7 @@ def make_zip(path: Path, member: str = "sample.txt", content: bytes = CONTENT) -
     return path
 
 
-def manifest_rows(
-    project_root: Path, table: str = "source_file_versions"
-) -> list[sqlite3.Row]:
+def manifest_rows(project_root: Path, table: str = "source_file_versions") -> list[sqlite3.Row]:
     db_path = project_root / "metadata" / "ingestion.db"
     with closing(sqlite3.connect(db_path)) as conn:
         conn.row_factory = sqlite3.Row
@@ -53,7 +51,7 @@ def test_lands_file_at_content_addressed_path(source_zip, project_root):
     landed = project_root / "data" / "raw" / "device" / f"sha256-{expected_hash}.zip"
 
     assert result["sha256"] == expected_hash
-    assert result["already_exists"] == False
+    assert result["already_exists"] is False
     assert landed.read_bytes() == source_zip.read_bytes()
     assert not landed.with_suffix(".zip.tmp").exists()
 
@@ -78,7 +76,7 @@ def test_landing_same_file_twice_is_idempotent(source_zip, project_root):
     first = land_file(source_zip, "device", project_root)
     second = land_file(source_zip, "device", project_root)
 
-    assert second["already_exists"] == True
+    assert second["already_exists"] is True
     assert second["object_path"] == first["object_path"]
     assert len(manifest_rows(project_root)) == 1
     assert len(list((project_root / "data" / "raw" / "device").iterdir())) == 1
@@ -88,8 +86,8 @@ def test_repeat_landing_records_each_observation(source_zip, project_root):
     first = land_file(source_zip, "device", project_root)
     second = land_file(source_zip, "device", project_root)
 
-    assert first["new_version"] == True
-    assert second["new_version"] == False
+    assert first["new_version"] is True
+    assert second["new_version"] is False
     assert second["version_id"] == first["version_id"]
 
     observations = manifest_rows(project_root, "source_file_observations")
@@ -97,9 +95,7 @@ def test_repeat_landing_records_each_observation(source_zip, project_root):
     assert {row["version_id"] for row in observations} == {first["version_id"]}
 
 
-def test_same_content_under_new_name_is_one_version_two_observations(
-    tmp_path, project_root
-):
+def test_same_content_under_new_name_is_one_version_two_observations(tmp_path, project_root):
     january = make_zip(tmp_path / "foidevadd_jan.zip")
     february = tmp_path / "foidevadd_feb.zip"
     february.write_bytes(january.read_bytes())  # Identical content under a new name
@@ -108,10 +104,7 @@ def test_same_content_under_new_name_is_one_version_two_observations(
     land_file(february, "device", project_root)
 
     assert len(manifest_rows(project_root)) == 1
-    names = [
-        row["source_filename"]
-        for row in manifest_rows(project_root, "source_file_observations")
-    ]
+    names = [row["source_filename"] for row in manifest_rows(project_root, "source_file_observations")]
     assert names == ["foidevadd_jan.zip", "foidevadd_feb.zip"]
 
 
@@ -152,9 +145,7 @@ def test_corrupt_zip_member_raises(tmp_path, project_root):
     path = make_zip(tmp_path / "corrupt.zip")
     data = path.read_bytes()
     assert data.count(b"hello world") == 1
-    path.write_bytes(
-        data.replace(b"hello world", b"hellO world")
-    )  # breaks the member's CRC
+    path.write_bytes(data.replace(b"hello world", b"hellO world"))  # breaks the member's CRC
 
     with pytest.raises(ValueError, match="Corrupt file inside ZIP archive"):
         land_file(path, "device", project_root)

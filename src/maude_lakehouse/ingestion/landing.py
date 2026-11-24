@@ -1,6 +1,6 @@
+import datetime
 import re
 import shutil
-import datetime
 from hashlib import sha256
 from pathlib import Path
 from zipfile import ZipFile
@@ -44,9 +44,7 @@ def land_file(
     Landing the same content again stores nothing new but still records an observation.
     """
     if not DATASET_NAME.fullmatch(dataset_name):
-        raise ValueError(
-            f"Invalid dataset name (use lowercase letters, digits, underscores): {dataset_name!r}"
-        )
+        raise ValueError(f"Invalid dataset name (use lowercase letters, digits, underscores): {dataset_name!r}")
 
     source_path = source_path.resolve()
     project_root = project_root.resolve()
