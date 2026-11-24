@@ -1,10 +1,14 @@
-
-from datetime import datetime, timezone
+import re
+import shutil
+from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
-import shutil
-import sqlite3
 from zipfile import ZipFile
+
+from maude_lakehouse.ingestion import manifest
+
+# Dataset names become folder names, so keep them to simple identifiers.
+DATASET_NAME = re.compile(r"^[a-z0-9_]+$")
 
 
 def calculate_sha256(path: Path) -> str:
@@ -29,27 +33,6 @@ def validate_zip(path: Path) -> None:
             )
 
 
-def initialize_manifest(db_path: Path) -> None:
-    """Create the ingestion metadata database and tables."""
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with sqlite3.connect(db_path) as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS source_file_versions (
-                version_id INTEGER PRIMARY KEY,
-                dataset_name TEXT NOT NULL,
-                source_filename TEXT NOT NULL,
-                source_url TEXT,
-                object_path TEXT NOT NULL UNIQUE,
-                sha256 TEXT NOT NULL,
-                file_size_bytes INTEGER NOT NULL,
-                landed_at TEXT NOT NULL,
-                processing_status TEXT NOT NULL DEFAULT 'pending',
-                processed_at TEXT,
-                UNIQUE(dataset_name, sha256)
-            )
-        """)
-
 
 def land_file(
     source_path: Path,
@@ -60,9 +43,12 @@ def land_file(
     """
     Validate and land a source ZIP file.
 
-    Stores the original artifact in the raw zone and
-    registers its metadata in SQLite.
+    Stores the original artifact in the raw zone under its SHA-256 and records it in the manifest.
+    Landing the same content again stores nothing new bit still records an observation.
     """
+    if not DATASET_NAME.fullmatch(dataset_name):
+        raise ValueError(f"Invalid dataset name (use lowercase letters, digits, underscores): {dataset_name!r}")
+
     source_path = source_path.resolve()
     project_root = project_root.resolve()
 
@@ -107,34 +93,18 @@ def land_file(
         already_exists = False
 
     # Register the artifact.
-    db_path = project_root / "metadata" / "ingestion.db"
-    initialize_manifest(db_path)
-
-    landed_at = datetime.now(timezone.utc).isoformat()
-
     relative_path = destination.relative_to(project_root)
 
-    with sqlite3.connect(db_path) as conn:
-        conn.execute("""
-            INSERT OR IGNORE INTO source_file_versions (
-                dataset_name,
-                source_filename,
-                source_url,
-                object_path,
-                sha256,
-                file_size_bytes,
-                landed_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            dataset_name,
-            source_path.name,
-            source_url,
-            str(relative_path),
-            checksum,
-            file_size,
-            landed_at,
-        ))
+    registration = manifest.register_landing(
+        project_root / "metadata" / "ingestion.db",
+        dataset_name=dataset_name,
+        source_filename=source_path.name,
+        source_url=source_url,
+        object_path=(relative_path),
+        sha256=checksum,
+        file_size_bytes=file_size,
+        observed_at=datetime.now(datetime.UTC).isoformat(),
+    )
 
     return {
         "dataset": dataset_name,
@@ -143,4 +113,6 @@ def land_file(
         "size_bytes": file_size,
         "object_path": str(relative_path),
         "already_exists": already_exists,
+        "version_id": registration["version_id"],
+        "new_version": registration["new_version"],
     }
