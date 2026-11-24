@@ -74,4 +74,4 @@ Design decisions are recorded in [`docs/adr/`](docs/adr/); conventions are in
 
 ## License
 
-TBD
+[MIT](LICENSE)
