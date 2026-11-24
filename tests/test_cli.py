@@ -10,7 +10,7 @@ from maude_lakehouse.cli import main
 def test_land_command_lands_file_and_prints_json(tmp_path: Path, capsys):
     source = tmp_path / "foidevadd.zip"
     with ZipFile(source, "w") as archive:
-        archive.writestr("sample.txt", "MDR_REPORT_KEY|TEXT\n|hello\n")
+        archive.writestr("sample.txt", "MDR_REPORT_KEY|TEXT\n1|hello\n")
     project_root = tmp_path / "project"
     project_root.mkdir()
 
@@ -18,8 +18,8 @@ def test_land_command_lands_file_and_prints_json(tmp_path: Path, capsys):
 
     assert exit_code == 0
     result = json.loads(capsys.readouterr().out)
-    assert result['dataset'] == 'device'
-    assert result['new_version'] is True
+    assert result["dataset"] == "device"
+    assert result["new_version"] is True
     assert (project_root / result["object_path"]).is_file()
 
 
