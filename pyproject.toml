@@ -1,7 +1,7 @@
 [project]
 name = "maude-lakehouse"
 version = "0.1.0"
-description = "Add your description here"
+description = "Lakehouse pipeline for FDA MAUDE medical device adverse event data"
 readme = "README.md"
 license = "MIT"
 license-files = ['LICENSE']
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-maude-lakehouse = "maude_lakehouse:main"
+maude-lakehouse = "maude_lakehouse.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]
