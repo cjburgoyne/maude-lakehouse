@@ -4,7 +4,7 @@ Answers the open questions in ADR 0003: which encoding the files use, how lines 
 lines can be rejoined, which records have extra delimiters, what each column looks like, and how fast a
 line-by-line Python reader is. Zip members are read as bytes, one line at a time, so memory stays flat.
 
-Sample views and raw lines can contain manufacturer names and narrative text. They are collected only when
+Sample values and raw lines can contain manufacturer names and narrative text. They are collected only when
 include_samples=True, and reports that contain them must not be committed.
 """
 
@@ -16,9 +16,9 @@ from collections import Counter
 from pathlib import Path
 from zipfile import ZipFile, ZipInfo
 
-DELIMTER = b"|"
+DELIMITER = b"|"
 BOM = b"\xef\xbb\xbf"
-MAX_SPAN = 50  # give up rejoining a record after this many physcial lines
+MAX_SPAN = 50  # give up rejoining a record after this many physical lines
 DISTINCT_CAP = 10_000
 SHAPE_CAP = 1_000
 SHAPE_MAX_LENGTH = 30
@@ -107,8 +107,8 @@ class _MemberProfiler:
         self.lines_with_bare_cr = 0
         self.lines_with_quotes = 0
         self.encoding: Counter[str] = Counter()
-        self.non_utf8_bytes: Counter[int] = Counter
-        self.nonutf8_line_numbers: list[int] = []
+        self.non_utf8_bytes: Counter[int] = Counter()
+        self.non_utf8_line_numbers: list[int] = []
         self.field_counts: Counter[int] = Counter()
         self.span_counts: Counter[int] = Counter()  # complete records by number of physical lines
         self.failures: Counter[str] = Counter()
@@ -134,7 +134,7 @@ class _MemberProfiler:
         if b'"' in body:
             self.lines_with_quotes += 1
 
-        field_count = body.count(DELIMTER) + 1
+        field_count = body.count(DELIMITER) + 1
         self.field_counts[field_count] += 1
         self._assemble(line_number, body, field_count)
 
@@ -185,9 +185,9 @@ class _MemberProfiler:
             self.encoding["undecodable"] += 1
 
     def _assemble(self, line_number: int, body: bytes, field_count: int) -> None:
-        """Group physcial lines into records the way a rejoining parser would.
+        """Group physical lines into records the way a rejoining parser would.
 
-        A line with too few fields starts a pending record. Following lines are appended while teh combined field
+        A line with too few fields starts a pending record. Following lines are appended while the combined field
         count is still short (the last field of one line and the first of the next are one field split by a line
         break). Reaching the header's count exactly completes the record; overshooting means the pending lines were
         a short record on their own, and the current line is then judged by itself.
@@ -335,20 +335,20 @@ def render_markdown(profiles: list[dict]) -> str:
                 "",
                 "| Measure | Value |",
                 "|---|---|",
-                f"| Uncompressed size | {m['uncompressed_bytes']:,} byltes |",
+                f"| Uncompressed size | {m['uncompressed_bytes']:,} bytes |",
                 f"| Lines | {m['lines']:,}{' (truncated)' if m['truncated'] else ''} |",
                 f"| Unaccounted lines | {m['unaccounted_lines']} |",
                 f"| Columns | {m['column_count']} |",
                 f"| Duplicate column names | {', '.join(m['duplicate_columns']) or 'none'} |",
                 f"| Byte order mark | {'yes' if m['has_bom'] else 'no'} |",
                 f"| Line endings | {_counts(m['line_endings'])} |",
-                f"| Lines with a bare CR | m{['lines_with_a_bare_cf']:,} |",
+                f"| Lines with a bare CR | {m['lines_with_a_bare_cr']:,} |",
                 f"| Lines with a double quote | {m['lines_with_quotes']:,} |",
-                f"| Encoding (data lines) | {_counts[m['encoding']]} |",
-                f"| Non-UTF-8 bytes (top) | {_counts[m['non_utf8_bytes']] or 'none'} |",
+                f"| Encoding (data lines) | {_counts(m['encoding'])} |",
+                f"| Non-UTF-8 bytes (top) | {_counts(m['non_utf8_bytes']) or 'none'} |",
                 f"| Records | {records['total']:,} |",
                 f"| Single-line records | {records['single_line']:,} |",
-                f"| Rejoined recods | {records['rejoined']:,} (spans: {_counts(m['rejoined_spans']) or 'none'}) |",
+                f"| Rejoined records | {records['rejoined']:,} (spans: {_counts(m['rejoined_spans']) or 'none'}) |",
                 f"| Too many fields | {records['too_many_fields']:,} |",
                 f"| Short records | {records['short_record']:,} |",
                 f"| Lines per second | {m['lines_per_second'] or 'n/a'} |",
@@ -358,7 +358,7 @@ def render_markdown(profiles: list[dict]) -> str:
             ]
             for c in m["columns"]:
                 distinct = f"{c['distinct']:,}{'+' if c['distinct_capped'] else ''}"
-                shapes = ", ".join(f"`{shape}` ({n:,}" for shape, n in c["top_shapes"].items())
+                shapes = ", ".join(f"`{shape}` ({n:,})" for shape, n in c["top_shapes"].items())
                 lines.append(
                     f"| {c['name']} | {c['empty_pct']} | {distinct} | {c['max_length']} | {c['padded']} | {shapes} |"
                 )
@@ -369,13 +369,13 @@ def render_markdown(profiles: list[dict]) -> str:
     if not differences:
         lines.append("All headers match the first file.")
     else:
-        lines += ["| File | Added | Removed | Reorderered |", "|---|---|---|---|"]
+        lines += ["| File | Added | Removed | Reordered |", "|---|---|---|---|"]
         for d in differences:
             lines.append(
                 f"| {d['file']} | {', '.join(d['added'])} | {', '.join(d['removed'])} | {'yes' if d['reordered'] else ''} |"
             )
-        lines.append("")
-        return "\n".join(lines)
+    lines.append("")
+    return "\n".join(lines)
 
 
 def write_reports(profiles: list[dict], out_dir: Path) -> dict:

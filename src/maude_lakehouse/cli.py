@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--out-dir",
         type=Path,
         default=Path("metadata/profiles"),
-        help="Where to write the reports (default: metadata/profiles, which git ignores",
+        help="Where to write the reports (default: metadata/profiles, which git ignores)",
     )
     profile.add_argument("--max-records", type=int, help="Stop after this many records per file")
     profile.add_argument(

@@ -38,7 +38,7 @@ def test_record_split_by_line_break_is_rejoined(tmp_path):
     m = profile_bytes(tmp_path, b"A|B|C\n1|hello\nworld|z\n2|p|q\n")
 
     assert m["records"]["single_line"] == 1
-    assert m["reecords"]["rejoined"] == 1
+    assert m["records"]["rejoined"] == 1
     assert m["rejoined_spans"] == {"2": 1}
-    assert m["columns"][1]["max_length"] == len("hellow\nworld")
+    assert m["columns"][1]["max_length"] == len("hello\nworld")
     assert m["unaccounted_lines"] == 0
