@@ -79,7 +79,7 @@ def test_short_record_at_end_of_file(tmp_path):
 
 
 def test_encoding_counts(tmp_path):
-    content = b"A|B\n1|plain\n2|caf\xc3\xa9\n3|car\xe9\n4|bad\x81\n"
+    content = b"A|B\n1|plain\n2|caf\xc3\xa9\n3|caf\xe9\n4|bad\x81\n"
     m = profile_bytes(tmp_path, content)
 
     assert m["encoding"] == {"ascii": 1, "utf8": 1, "cp1252": 1, "undecodable": 1}
@@ -94,7 +94,7 @@ def test_byte_order_mark_is_detected_and_stripped(tmp_path):
     assert m["header"] == ["A", "B"]
 
 
-def test_bare_cf_and_quotes_are_counted(tmp_path):
+def test_bare_cr_and_quotes_are_counted(tmp_path):
     m = profile_bytes(tmp_path, b'A|B\n1|a\rb\n2|"quoted"\n')
 
     assert m["lines_with_bare_cr"] == 1
@@ -102,7 +102,7 @@ def test_bare_cf_and_quotes_are_counted(tmp_path):
 
 
 def test_column_stats(tmp_path):
-    m = profile_bytes(tmp_path, b"DATE_RECEIVED|NAME\n03/15/2024| padded\n04/01/2024|\n|x\n")
+    m = profile_bytes(tmp_path, b"DATE_RECEIVED|NAME\n03/15/2024|  padded\n04/01/2024|\n|x\n")
     date, name = m["columns"]
 
     assert date["empty_pct"] == pytest.approx(33.33)
