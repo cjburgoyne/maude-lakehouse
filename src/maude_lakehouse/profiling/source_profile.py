@@ -30,13 +30,13 @@ _LETTER_RUNS = re.compile("A+")
 
 
 def decode(body: bytes) -> str:
-    """Best effort decode for statistics only. Bronze will decode strictly (ADR 0003)."""
+    """Best-effort decode for statistics only. Bronze will decode strictly (ADR 0003)."""
     for encoding in ("utf-8", "cp1252"):
         try:
             return body.decode(encoding)
         except UnicodeDecodeError:
             pass
-    return body.decode("latin-1")
+    return body.decode("latin-1")  # never fails
 
 
 def value_shape(value: str) -> str:
@@ -342,7 +342,7 @@ def render_markdown(profiles: list[dict]) -> str:
                 f"| Duplicate column names | {', '.join(m['duplicate_columns']) or 'none'} |",
                 f"| Byte order mark | {'yes' if m['has_bom'] else 'no'} |",
                 f"| Line endings | {_counts(m['line_endings'])} |",
-                f"| Lines with a bare CR | {m['lines_with_a_bare_cr']:,} |",
+                f"| Lines with a bare CR | {m['lines_with_bare_cr']:,} |",
                 f"| Lines with a double quote | {m['lines_with_quotes']:,} |",
                 f"| Encoding (data lines) | {_counts(m['encoding'])} |",
                 f"| Non-UTF-8 bytes (top) | {_counts(m['non_utf8_bytes']) or 'none'} |",
