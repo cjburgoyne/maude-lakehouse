@@ -52,7 +52,7 @@ Checked against the FDA server on 2026-11-24:
 - A file whose timestamp changes but whose content doesn't (a re-upload) is downloaded once more, then landing
   records an observation without a new version.
 - The check history shows when FDA changed each file, which helps answer the spike's questions about when Add
-  and Chnage files are replaced.
+  and Change files are replaced.
 - If the server's behavior changes (ETag format, missing headers), the worst case is extra downloads, not missed
   changes. The one gap: a file replaced with different content but the same size, timestamp, and ETag
   would be skipped. `--force` covers that.
