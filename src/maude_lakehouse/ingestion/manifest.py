@@ -1,6 +1,6 @@
 """SQLite manifest of landed source files.
 
-Three Tables:
+Three tables:
  - source_file_versions: one row per unique file content (dataset + SHA-256). Points at the stored artifact.
  - source_file_observations: one row each time a file is landed, including repeats of content already stored.
    This records that the FDA published a given file on a given date, even when its content hadn't changed.

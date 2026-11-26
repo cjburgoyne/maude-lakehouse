@@ -17,7 +17,7 @@ LAST_MODIFIED = "Wed, 18 Nov 2026 00:03:33 GMT"
 def zip_bytes(content: bytes = b"MDR_REPORT_KEY|TEXT\n1|hello\n") -> bytes:
     buffer = io.BytesIO()
     with ZipFile(buffer, "w") as archive:
-        archive.writestr("samples.txt", content)
+        archive.writestr("sample.txt", content)
     return buffer.getvalue()
 
 
@@ -116,7 +116,7 @@ def test_first_download_lands_file(fda, project_root):
     assert result["dataset"] == "device"
     assert result["new_version"] is True
     assert (project_root / result["object_path"]).is_file()
-    assert result["object_path"].startswith("data/raw/device")  # forward slashes on every OS
+    assert result["object_path"].startswith("data/raw/device/")  # forward slashes on every OS
     assert fda.requests == [("HEAD", "deviceadd.zip"), ("GET", "deviceadd.zip")]
 
     (check,) = rows(project_root, "source_file_checks")
@@ -233,7 +233,7 @@ def test_check_file_reports_status_without_changing_anything(fda, project_root):
     fda.publish("deviceadd.zip", zip_bytes())
     client = fda.client()
 
-    assert check_file("deviceadd.zip", project_root, client=client)
+    assert check_file("deviceadd.zip", project_root, client=client)["status"] == "new"
     assert not (project_root / "metadata").exists()
 
     download_file("deviceadd.zip", project_root, client=client)

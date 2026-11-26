@@ -21,7 +21,7 @@ BASE_URL = "https://www.accessdata.fda.gov/MAUDE/ftparea/"
 CHUNK_SIZE = 1024 * 1024
 FILENAME = re.compile(r"^[a-z0-9_]+\.zip$")
 
-# File name prefix -> dataset. More specific prefixes come first
+# File name prefix -> dataset. More specific prefixes come first.
 DATASETS = [
     (re.compile(r"^patientproblemcodes\d"), "patient_problem_codes"),
     (re.compile(r"^patientproblemcode"), "patient_problem"),
@@ -34,9 +34,9 @@ DATASETS = [
 ]
 
 
-@dataclass
+@dataclass(frozen=True)
 class RemoteFile:
-    """What the server days about a file."""
+    """What the server says about a file."""
 
     url: str
     etag: str | None
@@ -58,7 +58,7 @@ class RemoteFile:
 
         Last-Modified and Content-Length must be present and equal. ETag is compared only when both sides have one.
         When the server doesn't send enough to tell, the answer is False and the file is downloaded; landing then
-        recognizes indentical content by its SHA-256.
+        recognizes identical content by its SHA-256.
         """
         if self.last_modified is None or self.content_length is None:
             return False
@@ -165,7 +165,7 @@ def download_file(
 
 def _url(filename: str) -> str:
     if not FILENAME.fullmatch(filename):
-        raise ValueError(f"Invalid file name (expected something like device2025.zip): {filename}")
+        raise ValueError(f"Invalid file name (expected something like device2025.zip): {filename!r}")
     return BASE_URL + filename
 
 
