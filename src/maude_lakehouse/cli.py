@@ -3,7 +3,11 @@
 import argparse
 import json
 from pathlib import Path
+from zipfile import BadZipFile
 
+import httpx
+
+from maude_lakehouse.ingestion.download import check_file, download_file, make_client
 from maude_lakehouse.ingestion.landing import land_file
 from maude_lakehouse.profiling.source_profile import profile_zip, write_reports
 
@@ -33,6 +37,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include sample values and raw lines. They can contain names and narrative text; do not commit.",
     )
 
+    download = commands.add_parser(
+        "download", help="Download FDA files and land them, skipping files the server reports unchanged"
+    )
+    download.add_argument("filenames", nargs="+", help="FDA file names, e.g. deviceadd.zip mdrfoiadd.zip")
+    download.add_argument("--dataset", help="Dataset name for all files (default: inferred from each file name)")
+    download.add_argument("--force", action="store_true", help="Download even if the server reports no change")
+    download.add_argument(
+        "--check-only", action="store_true", help="Only report new / changed / unchanged; download nothing"
+    )
+    download.add_argument(
+        "--project-root", type=Path, default=Path.cwd(), help="Project root (default: current folder)"
+    )
+
     return parser
 
 
@@ -49,7 +66,30 @@ def main(argv: list[str] | None = None) -> int:
         ]
         print(json.dumps(write_reports(profiles, args.out_dir), indent=2))
 
+    elif args.command == "download":
+        return run_downloads(args)
+
     return 0
+
+
+def run_downloads(args: argparse.Namespace) -> int:
+    """Process each file in turn. One failure doesn't stop the rest, but makes the exit code 1."""
+    results = []
+    with make_client() as client:
+        for filename in args.filenames:
+            try:
+                if args.check_only:
+                    result = check_file(filename, args.project_root, client=client)
+                else:
+                    result = download_file(
+                        filename, args.project_root, client=client, dataset=args.dataset, force=args.force
+                    )
+            except (httpx.HTTPError, ValueError, BadZipFile) as error:
+                result = {"filename": filename, "status": "error", "error": str(error)}
+            results.append(result)
+
+    print(json.dumps(results, indent=2))
+    return 1 if any(r["status"] == "error" for r in results) else 0
 
 
 if __name__ == "__main__":
