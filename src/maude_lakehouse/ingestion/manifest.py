@@ -1,9 +1,11 @@
 """SQLite manifest of landed source files.
 
-Two Tables:
+Three Tables:
  - source_file_versions: one row per unique file content (dataset + SHA-256). Points at the stored artifact.
  - source_file_observations: one row each time a file is landed, including repeats of content already stored.
    This records that the FDA published a given file on a given date, even when its content hadn't changed.
+ - source_file_checks: one row each time the downloader checks a URL, with the server's ETag, Last-Modified,
+   and Content-Length, and whether the file was downloaded or skipped as unchanged (ADR 0004).
 """
 
 import sqlite3
@@ -33,6 +35,19 @@ CREATE TABLE IF NOT EXISTS source_file_observations (
     source_url TEXT,
     observed_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS source_file_checks (
+    check_id INTEGER PRIMARY KEY,
+    source_url TEXT NOT NULL,
+    checked_at TEXT NOT NULL,
+    etag TEXT,
+    last_modified TEXT,
+    content_length INTEGER,
+    action TEXT NOT NULL CHECK (action IN ('downloaded', 'unchanged')),
+    version_id INTEGER REFERENCES source_file_versions(version_id)
+);
+
+CREATE INDEX IF NOT EXISTS source_file_checks_by_url ON source_file_checks (source_url, check_id);
 """
 
 
@@ -106,3 +121,51 @@ def register_landing(
         )
 
     return {"version_id": version_id, "new_version": new_version}
+
+
+def record_check(
+    db_path: Path,
+    *,
+    source_url: str,
+    checked_at: str,
+    etag: str | None,
+    last_modified: str | None,
+    content_length: int | None,
+    action: str,
+    version_id: int | None,
+) -> None:
+    """Record one downloader check of a URL."""
+    initialize(db_path)
+
+    with connect(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO source_file_checks (
+                source_url, checked_at, etag, last_modified, content_length, action, version_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (source_url, checked_at, etag, last_modified, content_length, action, version_id),
+        )
+
+
+def last_download(db_path: Path, source_url: str) -> dict | None:
+    """Return the most recent check of this URL that resulted in a download, or None."""
+    if not db_path.exists():
+        return None
+
+    initialize(db_path)
+
+    with connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            """
+            SELECT * FROM source_file_checks
+            WHERE source_url = ? AND action = 'downloaded'
+            ORDER BY check_id DESC
+            LIMIT 1
+            """,
+            (source_url,),
+        ).fetchone()
+
+    return dict(row) if row else None
