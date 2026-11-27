@@ -54,7 +54,7 @@ gold        targeted dimensional models
 - `src/maude_lakehouse/ingestion/manifest.py`: SQLite manifest (`metadata/ingestion.db`) with one row per
   unique file content, one row per landing, and one row per download check.
 - `src/maude_lakehouse/profiling/source_profile.py`: profiles source zips (encoding, line endings, records
-  split across lines, field counts, column shapes, header changes) to settle the open questions in
+  split across lines, field counts, column shapes, header changes); its results settled the bronze design in
   [ADR 0003](docs/adr/0003-bronze-layer.md).
 - `src/maude_lakehouse/cli.py`: the `maude-lakehouse` command, with `download`, `land`, and `profile`
   subcommands.
@@ -90,8 +90,8 @@ Design decisions are recorded in [`docs/adr/`](docs/adr/); conventions are in
 
 ## Roadmap
 
-1. Spike: download and profile each file family; document what's actually in the files (downloader and
-   profiler built)
+1. Spike: download and profile each file family; document what's actually in the files (`device`,
+   `mdrfoi`, and `foitext` profiled, results in ADR 0003; patient and problem-code files next)
 2. Bronze layer with quarantine and lineage
 3. Silver layer with idempotent monthly Add/Change merges
 4. Gold models with dbt tests
