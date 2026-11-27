@@ -13,6 +13,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 import httpx
+from tqdm import tqdm
 
 from maude_lakehouse.ingestion import manifest
 from maude_lakehouse.ingestion.landing import land_file
@@ -113,8 +114,12 @@ def download_file(
     client: httpx.Client,
     dataset: str | None = None,
     force: bool = False,
+    progress: bool = False,
 ) -> dict:
-    """Download and land a file unless the server reports it unchanged since its last download."""
+    """Download and land a file unless the server reports it unchanged since its last download.
+
+    With progress=True, show a progress bar on stderr while downloading, if stderr is a terminal.
+    """
     url = _url(filename)
     dataset = dataset or dataset_for(filename)
     project_root = project_root.resolve()
@@ -139,7 +144,7 @@ def download_file(
 
     with tempfile.TemporaryDirectory(dir=downloads_dir) as temp_dir:
         path = Path(temp_dir) / filename  # keep the FDA name; landing records it
-        downloaded = _stream(client, url, path)
+        downloaded = _stream(client, url, path, progress=progress)
         landed = land_file(path, dataset, project_root, source_url=url)
 
     manifest.record_check(
@@ -187,16 +192,28 @@ def _head(client: httpx.Client, url: str) -> RemoteFile:
     return RemoteFile.from_response(response)
 
 
-def _stream(client: httpx.Client, url: str, path: Path) -> RemoteFile:
+def _stream(client: httpx.Client, url: str, path: Path, *, progress: bool = False) -> RemoteFile:
     """Stream a file to disk and check that the full body arrived. Returns the GET response's headers."""
     with client.stream("GET", url) as response:
         response.raise_for_status()
         remote = RemoteFile.from_response(response)
         size = 0
-        with path.open("wb") as out:
+        with (
+            path.open("wb") as out,
+            tqdm(
+                total=remote.content_length,  # None (no total) when the server doesn't send one
+                desc=path.name,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                leave=False,
+                disable=None if progress else True,  #  None: off when stderr isn't a terminal
+            ) as bar,
+        ):
             for chunk in response.iter_bytes(CHUNK_SIZE):
                 out.write(chunk)
                 size += len(chunk)
+                bar.update(len(chunk))
 
     if remote.content_length is not None and size != remote.content_length:
         raise ValueError(f"Incomplete download: got {size:,} of {remote.content_length:,} bytes from {url}")

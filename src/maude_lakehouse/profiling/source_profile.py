@@ -16,6 +16,8 @@ from collections import Counter
 from pathlib import Path
 from zipfile import ZipFile, ZipInfo
 
+from tqdm import tqdm
+
 DELIMITER = b"|"
 BOM = b"\xef\xbb\xbf"
 MAX_SPAN = 50  # give up rejoining a record after this many physical lines
@@ -24,6 +26,7 @@ SHAPE_CAP = 1_000
 SHAPE_MAX_LENGTH = 30
 SAMPLE_LIMIT = 5
 SAMPLE_TEXT_LENGTH = 200
+PROGRESS_EVERY = 10_000  # lines between progress bar updates; updating on every line slows the reader
 
 _SHAPE_TABLE = str.maketrans({**dict.fromkeys(string.digits, "9"), **dict.fromkeys(string.ascii_letters, "A")})
 _LETTER_RUNS = re.compile("A+")
@@ -271,18 +274,29 @@ class _MemberProfiler:
 
 
 def profile_member(
-    archive: ZipFile, info: ZipInfo, *, max_records: int | None = None, include_samples: bool = False
+    archive: ZipFile,
+    info: ZipInfo,
+    *,
+    max_records: int | None = None,
+    include_samples: bool = False,
+    progress: bool = False,
 ) -> dict:
     profiler = _MemberProfiler(include_samples)
     truncated = False
     started = time.perf_counter()
 
-    with archive.open(info) as member:
+    with archive.open(info) as member, _progress_bar(info.filename, info.file_size, progress) as bar:
+        unreported = 0
         for line_number, raw in enumerate(member, start=1):
             profiler.feed(line_number, raw)
+            unreported += len(raw)
+            if line_number % PROGRESS_EVERY == 0:
+                bar.update(unreported)
+                unreported = 0
             if max_records is not None and profiler.records >= max_records:
                 truncated = True
                 break
+        bar.update(unreported)
     profiler.finish()
 
     elapsed = time.perf_counter() - started
@@ -296,11 +310,13 @@ def profile_member(
     }
 
 
-def profile_zip(path: Path, *, max_records: int | None = None, include_samples: bool = False) -> dict:
-    """Profile every file inside a source zip."""
+def profile_zip(
+    path: Path, *, max_records: int | None = None, include_samples: bool = False, progress: bool = False
+) -> dict:
+    """Profile every file inside a source zip. With progress=True, show a progress bar on stderr if it's a terminal."""
     with ZipFile(path) as archive:
         members = [
-            profile_member(archive, info, max_records=max_records, include_samples=include_samples)
+            profile_member(archive, info, max_records=max_records, include_samples=include_samples, progress=progress)
             for info in archive.infolist()
             if not info.is_dir()
         ]
@@ -390,6 +406,19 @@ def write_reports(profiles: list[dict], out_dir: Path) -> dict:
     report_path = out_dir / "report.md"
     report_path.write_text(render_markdown(profiles), encoding="utf-8")
     return {"json": json_paths, "report": str(report_path)}
+
+
+def _progress_bar(description: str, total_bytes: int, enabled: bool) -> tqdm:
+    """A byte-based progress bar on stderr. disable=None turns it off when stderr isn't a terminal."""
+    return tqdm(
+        total=total_bytes,
+        desc=description,
+        unit="B",
+        unit_scale=True,
+        unit_divisor=1024,
+        leave=False,
+        disable=None if enabled else True,
+    )
 
 
 def _counts(counts: dict) -> str:

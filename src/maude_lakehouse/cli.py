@@ -62,7 +62,8 @@ def main(argv: list[str] | None = None) -> int:
 
     elif args.command == "profile":
         profiles = [
-            profile_zip(source, max_records=args.max_records, include_samples=args.samples) for source in args.sources
+            profile_zip(source, max_records=args.max_records, include_samples=args.samples, progress=True)
+            for source in args.sources
         ]
         print(json.dumps(write_reports(profiles, args.out_dir), indent=2))
 
@@ -82,7 +83,12 @@ def run_downloads(args: argparse.Namespace) -> int:
                     result = check_file(filename, args.project_root, client=client)
                 else:
                     result = download_file(
-                        filename, args.project_root, client=client, dataset=args.dataset, force=args.force
+                        filename,
+                        args.project_root,
+                        client=client,
+                        dataset=args.dataset,
+                        force=args.force,
+                        progress=True,
                     )
             except (httpx.HTTPError, ValueError, BadZipFile) as error:
                 result = {"filename": filename, "status": "error", "error": str(error)}
