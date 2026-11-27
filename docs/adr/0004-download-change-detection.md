@@ -30,7 +30,8 @@ Checked against the FDA server on 2026-11-24:
    file was downloaded or skipped, and the version it maps to. The comparison uses the headers from the most
    recent download, taken from the `GET` response so they describe the bytes actually received.
 4. **Check that the whole file arrived:** the number of bytes written must equal the `GET` response's
-   `Content-Length`. Request `Accept-Encoding: identity` so the two are comparable.
+   `Content-Length`. Request `Accept-Encoding: identity` so the two are comparable. If the response has no
+   `Content-Length`, the size check is skipped; landing still validates the zip.
 5. **Download to a temporary folder under `data/downloads/`, keeping the FDA file name**, then land it. The
    temporary folder is removed whether landing succeeds or fails.
 6. **`--check-only`** reports `new`, `changed`, or `unchanged` per file using only `HEAD` and changes nothing.
@@ -51,8 +52,8 @@ Checked against the FDA server on 2026-11-24:
 - A monthly run that finds nothing new makes one small request per file.
 - A file whose timestamp changes but whose content doesn't (a re-upload) is downloaded once more, then landing
   records an observation without a new version.
-- The check history shows when FDA changed each file, which helps answer the spike's questions about when Add
-  and Change files are replaced.
+- The check history shows when FDA changed each file, which helps answer open questions about when Add and
+  Change files are replaced.
 - If the server's behavior changes (ETag format, missing headers), the worst case is extra downloads, not missed
   changes. The one gap: a file replaced with different content but the same size, timestamp, and ETag
   would be skipped. `--force` covers that.

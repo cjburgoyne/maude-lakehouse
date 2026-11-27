@@ -1,13 +1,14 @@
 # ADR 0002: Where the landing manifest lives
 
-- Status: Proposed (open)
-- Date: 2026-11-23
+- Status: Proposed
+- Date: 2026-11-23 (context updated 2026-11-26)
 
 ## Context
 
 The landing step records every source file in a manifest: one row per unique content
-(`source_file_versions`) and one row per time a file is seen (`source_file_observations`). Today the manifest
-is a SQLite file in `metadata/ingestion.db`, next to the raw files.
+(`source_file_versions`) and one row per time a file is seen (`source_file_observations`). The downloader adds
+a third table, `source_file_checks`, with one row per check of an FDA URL (ADR 0004). Today the manifest is a
+SQLite file in `metadata/ingestion.db`, next to the raw files.
 
 Processing into silver and gold will run on Databricks Free Edition. Free Edition restricts outbound internet
 access to a limited set of trusted domains, so downloading from the FDA has to happen outside the workspace (a
@@ -34,7 +35,9 @@ updates `processing_status`.
 ## Leaning
 
 Option 3: it keeps a single writer for each table and works with Free Edition's network limits. Reconciling
-landed versions against processed versions is also a useful data quality check in its own right.
+landed versions against processed versions is also a useful data quality check in its own right. The download
+checks support this split: they are written and read only where downloading happens, and Databricks never needs
+them.
 
 ## To decide
 

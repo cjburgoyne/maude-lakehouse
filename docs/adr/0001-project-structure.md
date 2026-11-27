@@ -48,3 +48,11 @@ Databricks jobs. The question is where that orchestration lives.
 - The same entry point can run as a Databricks job task from a built wheel (Python wheel task in Databricks
   Asset Bundles) without restructuring.
 - Library functions stay testable without the CLI; the CLI gets its own small tests.
+
+## Update 2026-11-26
+
+The decision is unchanged. Two subcommands and their modules have been added since:
+
+- `download` (`ingestion/download.py`): checks FDA files for changes and lands the ones that changed (ADR 0004).
+  The manifest gained a third table, `source_file_checks`.
+- `profile` (`profiling/source_profile.py`): profiles source zips to answer the open questions in ADR 0003.
