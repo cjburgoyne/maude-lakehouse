@@ -4,8 +4,8 @@
 A lakehouse for the FDA's MAUDE medical device adverse event data: raw public files landed unchanged, parsed
 into a source-preserving bronze layer, and processed into typed silver tables and targeted gold models.
 
-**Status:** early. File landing (checksums, content-addressed storage, manifest) is in place; parsing and the
-bronze layer are in progress.
+**Status:** early. Downloading with change detection, file landing (checksums, content-addressed storage,
+manifest), and source profiling are in place. Next: profiling every file family, then the bronze parser.
 
 ## Why
 
@@ -26,16 +26,19 @@ updated monthly. FDA data is in the public domain. No data is stored in this rep
 ## Architecture (planned)
 
 ```
-FDA download page
-      │  download, validate, checksum
+FDA file server
+      │  download if changed (HEAD check), validate, checksum      laptop or GitHub Actions
       ▼
 raw         original zip files, unchanged, content-addressed (sha256), recorded in a manifest
       │  parse; quarantine rows that fail, never drop them silently
       ▼
-bronze      source-preserving tables with file-level lineage
+bronze      source-preserving Parquet with file-level lineage
+      │  upload to a Unity Catalog volume
+      ▼
+─────────────────────────────── Databricks Free Edition ───────────────────────────────
       │  merge monthly Add/Change files (CDC), type and deduplicate
       ▼
-silver      typed, deduplicated tables (Databricks Free Edition, Delta Lake)
+silver      typed, deduplicated Delta tables
       │  dbt models with tests
       ▼
 gold        targeted dimensional models
@@ -43,9 +46,18 @@ gold        targeted dimensional models
 
 ## What's here now
 
+- `src/maude_lakehouse/ingestion/download.py`: checks each FDA file with a `HEAD` request and downloads it only
+  if the server reports a change since the last download; checks that the whole file arrived, then lands it
+  ([ADR 0004](docs/adr/0004-download-change-detection.md)).
 - `src/maude_lakehouse/ingestion/landing.py`: validates a source zip, stores it by SHA-256 so identical files
-  are never duplicated, copies atomically (temporary file, verify, rename), and records each file in a SQLite
-  manifest with its source URL, size, and processing status.
+  are never duplicated, and copies atomically (temporary file, verify, rename).
+- `src/maude_lakehouse/ingestion/manifest.py`: SQLite manifest (`metadata/ingestion.db`) with one row per
+  unique file content, one row per landing, and one row per download check.
+- `src/maude_lakehouse/profiling/source_profile.py`: profiles source zips (encoding, line endings, records
+  split across lines, field counts, column shapes, header changes) to settle the open questions in
+  [ADR 0003](docs/adr/0003-bronze-layer.md).
+- `src/maude_lakehouse/cli.py`: the `maude-lakehouse` command, with `download`, `land`, and `profile`
+  subcommands.
 
 ## Getting started
 
@@ -55,6 +67,17 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.12.
 uv sync
 uv run pytest
 ```
+
+Check whether FDA files have changed, download and land them, then profile what was landed:
+
+```bash
+uv run maude-lakehouse download deviceadd.zip mdrfoiadd.zip --check-only
+uv run maude-lakehouse download deviceadd.zip mdrfoiadd.zip
+uv run maude-lakehouse profile data/raw/device/sha256-*.zip
+```
+
+Downloads land in `data/raw/<dataset>/`, the manifest is `metadata/ingestion.db`, and profile reports are
+written to `metadata/profiles/`. Git ignores all three.
 
 Design decisions are recorded in [`docs/adr/`](docs/adr/); conventions are in
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
@@ -67,7 +90,8 @@ Design decisions are recorded in [`docs/adr/`](docs/adr/); conventions are in
 
 ## Roadmap
 
-1. Parse and profile each file family; document what's actually in the files
+1. Spike: download and profile each file family; document what's actually in the files (downloader and
+   profiler built)
 2. Bronze layer with quarantine and lineage
 3. Silver layer with idempotent monthly Add/Change merges
 4. Gold models with dbt tests
