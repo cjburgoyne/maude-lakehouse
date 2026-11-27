@@ -1,6 +1,7 @@
 import io
 import json
 import sqlite3
+import sys
 from contextlib import closing
 from pathlib import Path
 from zipfile import ZipFile
@@ -266,3 +267,16 @@ def test_download_command_check_only(fda, project_root, monkeypatch, capsys):
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out)[0]["status"] == "new"
     assert fda.gets() == 0
+
+
+def test_download_progress_bar_goes_to_stderr(fda, project_root, capsys, monkeypatch):
+    fda.publish("deviceadd.zip", zip_bytes())
+    monkeypatch.setattr(sys.stderr, "isatty", lambda: True)
+
+    with fda.client() as client:
+        result = download_file("deviceadd.zip", project_root, client=client, progress=True)
+
+    captured = capsys.readouterr()
+    assert result["status"] == "downloaded"
+    assert "deviceadd.zip" in captured.err
+    assert captured.out == ""

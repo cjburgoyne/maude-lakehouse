@@ -1,10 +1,12 @@
 import json
+import sys
 from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
 
 from maude_lakehouse.cli import main
+from maude_lakehouse.profiling import source_profile
 from maude_lakehouse.profiling.source_profile import compare_headers, profile_zip, render_markdown, value_shape
 
 
@@ -189,3 +191,28 @@ def test_profile_command_writes_reports(tmp_path, capsys):
     profile = json.loads(Path(paths["json"][0]).read_text(encoding="utf-8"))
     assert profile["members"][0]["records"]["total"] == 1
     assert Path(paths["report"]).read_text(encoding="utf-8").startswith("# Source profile")
+
+
+def test_profile_command_shows_no_progress_bar_when_stderr_is_not_a_terminal(tmp_path, capsys):
+    source = make_zip(tmp_path / "foidevadd.zip", {"foidevadd.txt": b"MDR_REPORT_KEY|TEXT\n1|hello\n"})
+
+    main(["profile", str(source), "--out-dir", str(tmp_path / "profiles")])
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    json.loads(captured.out)
+
+
+def test_progress_bar_goes_to_stderr_and_leaves_results_unchanged(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(source_profile, "PROGRESS_EVERY", 3)  # exercise batched updates on a small file
+    content = b"A|B\n" + b"".join(f"{i}|x\n".encode() for i in range(10))
+    timing = {"elapsed_seconds", "lines_per_second"}
+
+    plain = profile_bytes(tmp_path, content)
+    monkeypatch.setattr(sys.stderr, "isatty", lambda: True)
+    with_bar = profile_bytes(tmp_path, content, progress=True)
+
+    captured = capsys.readouterr()
+    assert "source.txt" in captured.err
+    assert captured.out == ""
+    assert {k: v for k, v in with_bar.items() if k not in timing} == {k: v for k, v in plain.items() if k not in timing}
